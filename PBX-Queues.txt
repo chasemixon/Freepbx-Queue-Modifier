@@ -1,0 +1,250 @@
+<html>
+<head>
+<title>Modify Phone Queue</title>
+<HTA:APPLICATION
+  APPLICATIONNAME="Modify Phone Queue"
+  ID="MyHTMLapplication"
+  VERSION="1.0"/>
+</head>
+
+<script language="VBScript">
+Dim strSelectedValues, strSelectedValues2 
+
+ServerName = " ***** YOUR FREEPBX SERVER NAME OR IP ADDRESS ***** "
+UserName = " ***** YOUR MYSQL USER NAME ***** "
+Password = " ***** YOUR MYSQL PASSWORD ***** "
+
+Function RunScript(objListBox)
+ strSelectedValues = ""
+ ' Check all the Options of the ListBox
+ For i = 0 to (objListBox.Options.Length - 1)
+ ' Check if the Current Option is Selected
+        If (objListBox.Options(i).Selected) Then
+         ' Collect only the Selected Values
+            strSelectedValues = objListBox.Options(i).Value
+	    Name = objListBox.Options(i).Text
+        End If
+    Next
+    ' Echo the Listbox Selected Values
+'*************************
+
+Set DataConn = CreateObject("ADODB.Connection")
+Set objRS = CreateObject("ADODB.Recordset")
+ConStr = "Driver={MySQL ODBC 8.0 ANSI Driver};Server=" & ServerName  & ";Data Source=AsteriskDB; Database=asterisk;User=" & UserName & "; Password=" & Password & ";"
+DataConn.open ConStr
+
+    For Each objOption in ListBox2.Options
+        objOption.RemoveNode
+    Next
+
+StrSQL = "Select data from queues_details where queues_details.keyword = 'member' and id = '" & strSelectedValues & "';"
+set objRS = DataConn.Execute (StrSQL)
+
+Do While NOT objRS.EOF
+	tempext = Split(objRS.Fields(0),"/")
+	tempext1 = Split(tempext(1),"@")
+	ext_num = tempext1(0)
+	StrSQL1 = "Select name From users where extension = '" & ext_num & "';"
+	set objRS1 = DataConn.Execute (StrSQL1)
+	Set objOption = Document.createElement("OPTION")
+	objOption.Text = Trim(objRS1.Fields(0))
+	objOption.Value = ext_num
+	ListBox2.Add(objOption)
+	objRS.MoveNext()
+Loop
+
+objRS.Close 
+Set objRS = Nothing 
+DataConn.Close
+set DataConn = nothing 
+
+'************************
+
+End Function
+
+
+Function RunRemove(Remove)
+    For Each objOption in ListBox2.Options
+        objOption.RemoveNode
+    Next
+    For Each objOption in ListBox3.Options
+        objOption.RemoveNode
+    Next
+
+ strSelectedValues2 = ""
+ For i = 0 to (ListBox2.Options.Length - 1)
+ ' Check if the Current Option is Selected
+        If (ListBox2.Options(i).Selected) Then
+         ' Collect only the Selected Values
+            strSelectedValues2 = ListBox2.Options(i).Value
+	    Name = ListBox2.Options(i).Text
+        End If
+    Next
+    ' Echo the Listbox Selected Values
+
+Set DataConn = CreateObject("ADODB.Connection")
+Set objRS = CreateObject("ADODB.Recordset")
+ConStr = "Driver={MySQL ODBC 8.0 ANSI Driver};Server=" & ServerName  & ";Data Source=AsteriskDB; Database=asterisk;User=" & UserName & "; Password=" & Password & ";"
+DataConn.open ConStr
+
+counter = 0
+dim id(), keyword(), data(), flags(), temp_ext_num()
+
+StrSQL = "SELECT * FROM queues_details WHERE id = '" & strSelectedValues & "' and keyword = 'member' order by data;"
+set objRS = DataConn.Execute (StrSQL)
+Do Until objRS.EOF
+	redim preserve id(counter), keyword(counter), data(counter), flags(counter), temp_ext_num(counter)
+	id(counter) = Trim(objRS.Fields(0))
+	keyword(counter) = Trim(objRS.Fields(1))
+	data(counter) = Trim(objRS.Fields(2))
+	tempext = Split(data(counter),"/")
+	tempext1 = Split(tempext(1),"@")
+	temp_ext_num(counter) = tempext1(0)
+	flags(counter) = Trim(objRS.Fields(3))
+	counter = counter + 1
+	objRS.MoveNext
+Loop
+
+StrSQL = "DELETE FROM queues_details WHERE id = '" & strSelectedValues & "' and keyword = 'member';"
+DataConn.Execute (StrSQL)
+b = 0
+For a = 0 to counter - 1
+	If strSelectedValues2 <> temp_ext_num(a) Then
+		StrSQL = "INSERT INTO queues_details (id,keyword,data,flags) VALUES('" & id(a) & "','member','Local/" & temp_ext_num(a) & "@from-queue/n,0','" & b & "');"
+		'Msgbox StrSQL
+		DataConn.Execute (StrSQL)
+		b = b + 1
+	End If
+Next 
+window.close True
+End Function
+
+Function RunAdd(Add)
+
+ strSelectedValues2 = ""
+ For i = 0 to (ListBox2.Options.Length - 1)
+ ' Check if the Current Option is Selected
+        If (ListBox2.Options(i).Selected) Then
+         ' Collect only the Selected Values
+            strSelectedValues2 = ListBox2.Options(i).Value
+	    Name = ListBox2.Options(i).Text
+        End If
+    Next
+    ' Echo the Listbox Selected Values
+ strSelectedValues3 = ""
+ For i = 0 to (ListBox3.Options.Length - 1)
+ ' Check if the Current Option is Selected
+        If (ListBox3.Options(i).Selected) Then
+         ' Collect only the Selected Values
+            strSelectedValues3 = ListBox3.Options(i).Value
+	    Name = ListBox3.Options(i).Text
+        End If
+    Next
+    ' Echo the Listbox Selected Values
+
+Set DataConn = CreateObject("ADODB.Connection")
+Set objRS = CreateObject("ADODB.Recordset")
+ConStr = "Driver={MySQL ODBC 8.0 ANSI Driver};Server=" & ServerName  & ";Data Source=AsteriskDB; Database=asterisk;User=" & UserName & "; Password=" & Password & ";"
+DataConn.open ConStr
+StrSQL1 = "SELECT flags FROM queues_details where id = '" & strSelectedValues  & "' and keyword = 'member';"
+set objRS1 = DataConn.Execute (StrSQL1)
+c = 0
+Do Until objRS1.EOF
+	flags = CInt(objRS1.Fields(0))
+	If flags = c Then 
+		objRS1.MoveNext
+		c = c + 1
+	End If
+Loop
+'Msgbox flags
+StrSQL = "INSERT INTO queues_details (id,keyword,data,flags) VALUES('" & strSelectedValues  & "','member','Local/" & strSelectedValues3 & "@from-queue/n,0','" & c & "');"
+'MsgBox StrSQL
+DataConn.Execute (StrSQL)
+
+window.close True
+End Function
+
+
+</script>
+
+<body bgcolor="white">
+<table>
+ <tr>
+ <td>
+ <!-- Setting the ListBox Object -->
+ <h1>Select the Queue you want to modify</h1>
+ <select name="ListBox1" id="ListBox1" size=5>
+ </td>
+ </tr>
+
+<script language="VBScript">
+Set DataConn = CreateObject("ADODB.Connection")
+Set objRS = CreateObject("ADODB.Recordset")
+ConStr = "Driver={MySQL ODBC 8.0 ANSI Driver};Server=" & ServerName  & ";Data Source=AsteriskDB; Database=asterisk;User=" & UserName & "; Password=" & Password & ";"
+DataConn.open ConStr
+
+StrSQL = "Select extension, descr from queues_config order by extension;"
+set objRS = DataConn.Execute (StrSQL)
+Do Until objRS.EOF
+	queue_num = Trim(objRS.Fields(0))
+	queue_name = Trim(objRS.Fields(1))
+	Set objOption = Document.createElement("OPTION")
+	objOption.Text = queue_name
+	objOption.Value = queue_num
+	ListBox1.Add(objOption)
+	objRS.MoveNext
+Loop
+
+</script>
+ </select>
+ </td>
+ </tr>
+ <tr>
+ <td>
+ <!-- A Button to Get the ListBox1 Values -->
+ <input type="button" name="getValue" id="getValue" value="Select Queue" onclick="RunScript(ListBox1)">
+ <BR>
+ </td>
+ </tr>
+
+ <tr>
+ <td>
+ <!-- Setting the ListBox2 Object -->
+ <h1>Select the person you want to remove.&nbsp&nbsp</h1>
+ <select name="ListBox2" id="ListBox2" size=10>
+ </td>
+ <td>
+ <!-- Setting the ListBox3 Object -->
+ <h1>Select the person you want to add.&nbsp&nbsp</h1>
+ <select name="ListBox3" id="ListBox3" size=10>
+ </td>
+ </tr>
+
+<script language="VBScript">
+StrSQL1 = "Select extension, name From users where ((extension >= '200' and extension < 400) and extension <> 208 and extension <> 213 and extension <> 214 and extension <> 215 and extension <> 217 and extension <> 238 and extension <> 240 and extension <> 241 and extension <> 242 and extension <> 244 and extension <> 245 and extension <> 248 and extension <> 249 and extension <> 283 and extension <> 255) order by extension;"
+set objRS1 = DataConn.Execute (StrSQL1)
+Do Until objRS1.EOF
+	Set objOption = Document.createElement("OPTION")
+	objOption.Value = Trim(objRS1.Fields(0))
+	objOption.Text = Trim(objRS1.Fields(1))
+	ListBox3.Add(objOption)
+	objRS1.MoveNext()
+Loop
+</script>
+
+ <tr>
+ <td>
+ <!-- A Button to Get the ListBox2 Values -->
+ <input type="button" name="getValue1" id="getValue1" value="Remove From Queue" onclick="RunRemove(Remove)">
+ <BR>
+ </td>
+ <td>
+ <!-- A Button to Get the ListBox3 Values -->
+ <input type="button" name="getValue2" id="getValue2" value="Add to Queue" onclick="RunAdd(Add)">
+ <BR>
+ </td>
+ </tr>
+
+</table>
+</body>
+</html>
